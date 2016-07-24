@@ -2,9 +2,13 @@
   "auth_service": "google",
   "username": "jiefeijason119",
   "password": "69580663",
-  "auto_refresh": 20,
+  "auto_refresh": 60,
   "step_limit": 10,
-  "location": " 201 E Peabody Dr, Champaign, IL",
-  "notify": "p-idgey,nidoran,dratini,magnemite,electabuzz,hitmonchan,hitmonlee,chansey,lapras,snorlax,porygon,mew,mewtwo,moltres,zapdos,articuno,ditto,gyarados,cubone",
-  "pushbullet": "o.3TBhP1ZgGsjLXckpBblQcGxo4ZpZlwDr"
+  "-location": "Times Square, Manhattan, NY",
+  "location": "1409 W Green Street, Urbana, IL",
+  "-location": "Chinatown, Chicago, IL",
+  "-notify": "abra,cubone,koffing,bellsprout,machamp,machoke,kangaskhan,vaporeon,pinsir,rhydon, weezing, exeggutor,exeggcute,dodrio,muk,onix,golem,graveler,weepinbell, victreebel ,alakazam,kadabra,arcanine,growlithe,pidg-ey,vulpix,clefairy,clefable,ninetales, vileplume, nidorina,nidoqueen, nidorino, nidoking, bulbasaur,ivysaur,venusaur,charmander,charmeleon,charizard, nidoran,dratini,dragonair,dragonite,pikachu,electabuzz,hitmonchan,chansey,lapras,snorlax,porygon,mew,mewtwo,moltres,zapdos,articuno,ditto,gyarados,cubone",
+  "notify": "machamp,machoke,kangaskhan,rhydon,exeggcute,dodrio,muk,onix,golem,graveler,weepinbell, victreebel ,alakazam,kadabra,arcanine,clefable,ninetales, vileplume,nidoqueen, nidoking, bulbasaur,ivysaur,venusaur,charmeleon,charizard, dragonair,dragonite,chansey,lapras,snorlax,mew,mewtwo,moltres,zapdos,articuno,ditto,gyarados",
+  "pushbullet": "o.3TBhP1ZgGsjLXckpBblQcGxo4ZpZlwDr",
+  "ignore": "weedle,pidgey,rattata,zubat,spearow,drowzee"
 }
