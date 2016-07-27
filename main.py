@@ -19,6 +19,7 @@ import threading
 import werkzeug.serving
 import pokemon_pb2
 import time
+import warnings
 from google.protobuf.internal import encoder
 from google.protobuf.message import DecodeError
 from s2sphere import *
@@ -54,7 +55,6 @@ SESSION.verify = False
 
 global_password = None
 global_token = None
-access_token = None
 DEBUG = True
 VERBOSE_DEBUG = False  # if you want to write raw request/response to the console
 COORDS_LATITUDE = 0
@@ -66,7 +66,6 @@ NEXT_LAT = 0
 NEXT_LONG = 0
 auto_refresh = 0
 default_step = 0.001
-api_endpoint = None
 pokemons = {}
 gyms = {}
 pokestops = {}
@@ -80,8 +79,10 @@ origin_lat, origin_lon = None, None
 is_ampm_clock = False
 
 # stuff for in-background search thread
-
 search_thread = None
+
+# Login session
+login_session = None
 
 def memoize(obj):
     cache = obj.cache = {}
@@ -247,7 +248,6 @@ def api_req(service, api_endpoint, access_token, *args, **kwargs):
         print 'Response:'
         print p_ret
         print '''
-
 '''
     time.sleep(0.51)
     return p_ret
@@ -434,6 +434,8 @@ def get_token(service, username, password):
     else:
         return global_token
 
+
+
 def get_args():
     # load default args
     default_args = {
@@ -445,27 +447,76 @@ def get_args():
         "debug": False,
         "display_gym": False,
         "display_pokestop": False,
+        "do_not_notify": None,
         "host": "127.0.0.1",
         "ignore": None,
         "locale": "en",
+        "location": None,
+        "notify": None,
         "only": None,
         "onlylure": False,
+        "password": None,
         "port": 5000,
-        "step_limit": 4
+        "pushbullet": None,
+        "step_limit": 4,
+        "username": None
+    }
+
+    INTEGER_STR = "int"
+    BOOLEAN_STR = "bool"
+    STRING_STR = "str"
+    default_args_type = {
+        "DEBUG": BOOLEAN_STR,
+        "ampm_clock": BOOLEAN_STR,
+        "auth_service": STRING_STR,
+        "auto_refresh": INTEGER_STR,
+        "china": BOOLEAN_STR,
+        "debug": BOOLEAN_STR,
+        "display_gym": BOOLEAN_STR,
+        "display_pokestop": BOOLEAN_STR,
+        "do_not_notify": STRING_STR,
+        "host": STRING_STR,
+        "ignore": STRING_STR,
+        "locale": STRING_STR,
+        "location": STRING_STR,
+        "notify": STRING_STR,
+        "only": STRING_STR,
+        "onlylure": BOOLEAN_STR,
+        "password": STRING_STR,
+        "port": INTEGER_STR,
+        "pushbullet": STRING_STR,
+        "step_limit": INTEGER_STR,
+        "username": STRING_STR
     }
     # load config file
     with open('config.json') as data_file:
         data = json.load(data_file)
         for key in data:
-            default_args[key] = str(data[key])
+            if key not in default_args_type:
+                warnings.warn( 'Config Item ' + key + 'Does Not Have a Default Type' )
+
+            if default_args_type[key] == INTEGER_STR:
+                default_args[key] = int(data[key])
+
+            elif default_args_type[key] == BOOLEAN_STR:
+                default_args[key] = data[key]
+
+            else:
+                if default_args_type[key] != STRING_STR:
+                    warnings.warn( 'Unsupported Default Args Type' )
+
+                default_args[key] = str(data[key])
         # create namespace obj
         namespace = argparse.Namespace()
         for key in default_args:
             vars(namespace)[key] = default_args[key]
         return namespace
 
-@memoize
 def login(args):
+    global login_session
+    if login_session:
+        return login_session
+
     global global_password
     if not global_password:
       if args.password:
@@ -506,7 +557,8 @@ def login(args):
     for curr in profile.profile.currency:
         print '[+] {}: {}'.format(curr.type, curr.amount)
 
-    return api_endpoint, access_token, profile_response
+    login_session = api_endpoint, access_token, profile_response
+    return login_session
 
 def main():
     full_path = os.path.realpath(__file__)
@@ -601,7 +653,7 @@ def process_step(args, api_endpoint, access_token, profile_response,
     h = get_heartbeat(args.auth_service, api_endpoint, access_token,
                       profile_response)
     hs = [h]
-    seen = set([])
+    seen = {}
 
     for child in parent.children():
         latlng = LatLng.from_point(Cell(child).get_center())
@@ -616,11 +668,10 @@ def process_step(args, api_endpoint, access_token, profile_response,
         try:
             for cell in hh.cells:
                 for wild in cell.WildPokemon:
-                    hash = wild.SpawnPointId + ':' \
-                        + str(wild.pokemon.PokemonId)
-                    if hash not in seen:
+                    hash = wild.SpawnPointId;
+                    if hash not in seen.keys() or (seen[hash].TimeTillHiddenMs <= wild.TimeTillHiddenMs):
                         visible.append(wild)
-                        seen.add(hash)
+                    seen[hash] = wild.TimeTillHiddenMs
                 if cell.Fort:
                     for Fort in cell.Fort:
                         if Fort.Enabled == True:
@@ -642,6 +693,10 @@ transform_from_wgs_to_gcj(Location(Fort.Latitude, Fort.Longitude))
                                     pokestops[Fort.FortId] = [Fort.Latitude,
                                                               Fort.Longitude, expire_time]
         except AttributeError:
+            # Reset login session if problems happen
+            global login_session, global_token
+            login_session = None
+            global_token = None
             break
 
     for poke in visible:
@@ -662,7 +717,6 @@ transform_from_wgs_to_gcj(Location(Fort.Latitude, Fort.Longitude))
                 transform_from_wgs_to_gcj(Location(poke.Latitude,
                     poke.Longitude))
 
-
         pokemon_obj = {
             "lat": poke.Latitude,
             "lng": poke.Longitude,
@@ -671,11 +725,17 @@ transform_from_wgs_to_gcj(Location(Fort.Latitude, Fort.Longitude))
             "name": pokename
         }
 
+        
+
+        
+		#change
+	print "Pokemon :", pokemon_obj
         if poke.SpawnPointId not in pokemons:
-            notifier.pokemon_found(pokemon_obj)
-
-        pokemons[poke.SpawnPointId] = pokemon_obj
-
+             pokemons[poke.SpawnPointId] = pokemon_obj
+		     
+             notifier.pokemon_found(pokemon_obj)
+        #change
+		
 def clear_stale_pokemons():
     current_time = time.time()
 
